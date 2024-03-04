@@ -45,5 +45,5 @@ if __name__ == "__main__":
         doc.append('Some text.')
 
     doc.generate_pdf('basic_maketitle2', clean_tex=False)
-    # The document as string in LaTeX syntax
+    # The document as string_test in LaTeX syntax
     tex = doc.dumps()

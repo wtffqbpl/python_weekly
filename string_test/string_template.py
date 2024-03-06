@@ -357,14 +357,16 @@ def test_patterns(text, patterns):
     """
     # Look for each pattern in the text and print the results.
     for pattern, desc in patterns:
-        print("'{}' ({})\n".format(pattern, desc))
-        print("  '{}".format(text))
+        print("'{!r}' ({})\n".format(pattern, desc))
+        print('  {!r}'.format(text))
         for match in re.finditer(pattern, text):
             s, e = match.start(), match.end()
-            substr = text[s:e]
-            n_backslashes = text[:s].count('\\')
-            prefix = '.' * (s + n_backslashes)
-            print("  {}'{}'".format(prefix, substr))
+            prefix = ' ' * (s)
+            print('  {}{!r}{} '.format(prefix, text[s:e], ' ' * (len(text) - e)), end=' ',)
+            print(match.groups())
+
+            if match.groupdict():
+                print('{}{}'.format(' ' * (len(text) - s), match.groupdict()),)
         print()
 
 
@@ -441,3 +443,141 @@ test_patterns(
         (r'\w+t\b', 't at end of word'),
         (r'\Bt\B', 't, not start or end of word'),
     ])
+
+
+# Constraining the Search
+# If the pattern must appear at the front of the input, then using **match()** will anchor the search without having to
+# explicitly include an anchor in the search pattern.
+text = 'This is some text -- with punctuation.'
+pattern = 'is'
+
+print('Text : ', text)
+print('Pattern: ', pattern)
+
+m = re.match(pattern, text)
+print('Match : ', m)
+s = re.search(pattern, text)
+print('Search: ', s)
+
+# The **fullmatch()** method requires that the entire input string match the pattern.
+s = re.fullmatch(pattern, text)
+print('Full match: ', s)
+
+# Here **search()** method of a compiled regular expression accepts optional start and end position parameters to limit
+# the search to a substring of the input.
+
+pattern = re.compile(r'\b\w*is\w*\b')
+print('Text: ', text)
+print()
+
+pos = 0
+while True:
+    match = pattern.search(text, pos)
+    if not match:
+        break
+    s = match.start()
+    e = match.end()
+
+    print('  {:>2d} : {:>2d} = "{}"'.format(s, e - 1, text[s:e]))
+    # move forward in text for the next search
+    pos = e
+
+
+# Searching for pattern matches is the basis of the powerful capabilities provided by regular expressions. Adding groups
+# to a pattern isolates parts of the matching text, expanding those capabilities to create a parser. Groups are defined
+# by enclosing patterns in parentheses.
+
+test_patterns(
+    'abbaaabbbbaaaaa',
+    [('a(ab)', 'a followed by literal ab'),
+     ('a(a*b*)', 'a followed by 0-n a and 0-n b'),
+     ('a(ab)*', 'a followed by 0-n ab'),
+     ('a(ab)+', 'a followed by 1-n ab')]
+)
+
+# To acces the substrings matched by the individual groups within a pattern, use the **groups()** method of the Match
+# object.
+
+text = 'This is some text -- with punctuation.'
+
+print(text)
+print()
+
+patterns = [
+    (r'^(\w+)', 'word at start of string'),
+    (r'(\w+)\S*$', 'word at end, with optional punctuation'),
+    (r'(\bt\w+)\W+(\w+)', 'word starting with t, another word'),
+    (r'(\w+t)\b', 'word ending with t')
+]
+
+for pattern, desc in patterns:
+    regex = re.compile(pattern)
+    match = regex.search(text)
+    print("'{}' ({})\n".format(pattern, desc))
+    print('  ', match.groups())
+    # type(match.groups()) --- string of tuple
+    print('type(match.group(): ', type(match.groups()))
+    print()
+
+
+# To ask for the match of a single group, use the **group()** method. This is useful when grouping is being used to find
+# parts of the string, but some parts matched by groups are not needed in the results.
+
+text = 'This is some text -- with punctuation.'
+print('Input text: ', text)
+
+# Word starting with 't' then another word
+regex = re.compile(r'(\bt\w)\W+(\w+)')
+print('Pattern: ', regex.pattern)
+
+match = regex.search(text)
+if match:
+    print('Entire match: ', match.group(0))
+    print('Word starting with "t": ', match.group(1))
+    print('Word after "t" word: ', match.group(2))
+
+# Group o represents the string matched by the entire expression, and subgroups are numbered starting with 1 in the
+# order that their left parenthesis appears in the expression.
+
+# Python extends the basic grouping syntax to add named groups. Using names to refer to groups makes it easier to modify
+# the pattern over time, without having to also modify the code using the match results.
+# To set the name of a group, use the syntax (?P<name>pattern).
+
+text = 'This is some text -- with punctuation.'
+
+print(text)
+print()
+
+patterns = [
+    r'^(?P<first_word>\w+)',
+    r'(?P<last_word>\w+)\S*$',
+    r'(?P<t_word>\bt\w+)\W+(?P<other_word>\w)',
+    r'(?P<ends_with_t>\w+t)\b',
+]
+
+for pattern in patterns:
+    regex = re.compile(pattern)
+    match = regex.search(text)
+    print("'{}'".format(pattern))
+    print('  ', match.groups())
+    # Use **groupdict()** to retrieve the dictionary mapping group names to substrings from the match. Named patterns
+    # are included in the ordered sequence returned by groups as well.
+    print('  ', match.groupdict())
+    print()
+
+
+# Since a group is itself a complete regular expression, groups can be nested within other groups to build even more
+# complicated expressions.
+
+test_patterns(
+    'abbaabbba',
+    [(r'a((a*)(b*))', 'a followed by 0-n a and 0-n b')],
+)
+
+
+# Groups are also useful for specifying alternative patterns. Use the pipe symbol (|) to indicate that either pattern
+# should match. Consider the placement of the pipe carefully, though. The first expression in this example matches a
+# sequence of a followed by a sequence consisting entirely of a single letter, a or b. The second pattern matches a
+# followed by a sequence that may include either a or b. The patterns are similar, but the resulting matches are
+# completely different.
+

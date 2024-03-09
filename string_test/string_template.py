@@ -953,6 +953,172 @@ address = re.compile(
     ''',
     re.VERBOSE | re.IGNORECASE)
 
+candidates = [
+    u'First Last <first.last@example.com>',
+    u'Different Name <first.last@example.com>',
+    u'First Middle Last <first.last@example.com>',
+    u'First M. Last <first.last@example.com>',
+]
+
+for candidate in candidates:
+    print('Candidate: ', candidate)
+    match = address.search(candidate)
+    if match:
+        print('  Mach name: ', match.groupdict()['first_name'], end=' ')
+        print(match.groupdict()['last_name'])
+        print('  Match email: ', match.groupdict()['email'])
+    else:
+        print('  No match')
 
 
+# The other mechanism for using back-references in expressions chooses a different pattern based on whether a previous
+# group matched. The email pattern can be corrected so that the angle brackets are required if a name is present, and
+# not required if the email address is by itself. The syntax for testing whether a group has matched is
+#                       (?(id)yes-expression|no-expression)
+# Where id is the group name or number, yes-expression is the pattern to use if the group has a value, and no-expression
+# is the pattern to use otherwise.
+
+address = re.compile(
+    '''
+    ^
+    # A name is made up of letters, and may include "."
+    # for title abbreviations and middle initials.
+    (?P<name>
+        ([\w.]+\s+)*[\w.]+
+    )?
+    \s*
+    
+    # Email addresses are wrapped in angle brackets, but only if a name is found.
+    (?(name)
+        # Remainder wrapped in angle brackets because
+        # there is a name
+        (?P<brackets>(?=(<.*>$)))
+        |
+        # Remainder does not include angle brackets without name
+        (?=([^<].*[^>]$))
+    )
+    
+    # Look for a bracket only if the look-ahead assertion
+    # found both of them.
+    (?(brackets)<|\s*)
+    
+    # The address itself: username@domain.tld
+    (?P<email>
+        [\w\d.+-]+      # Username
+        @
+        ([\w\d.]+\.)+   # Domain name prefix
+        (com|org|edu)   # Limit the allowed top-level domains.
+    )
+    
+    # Look for a bracket only if the look-ahead assertion
+    # found both of them.
+    (?(brackets)>|\s*)
+    
+    $
+    ''',
+    re.VERBOSE)
+
+candidates = [
+    u'First Last <first.last@example.com>',
+    u'No Brackets first.last@example.com',
+    u'Open Brackets first.last@example.com',
+    u'Close Brackets first.last@example.com',
+    u'no.brackets@example.com',
+]
+
+for candidate in candidates:
+    print('Candidate: ', candidate)
+    match = address.search(candidate)
+    if match:
+        print('  Match name: ', match.groupdict()['name'])
+        print('  Match email: ', match.groupdict()['email'])
+    else:
+        print('  No match')
+
+
+# Modifying Strings with Patterns
+# In addition to searching through text, re supports modifying text using regular expressions as the search mechanism,
+# and the replacements can reference groups matched in the pattern as part of the substitution text. Use sub() to
+# replace all occurrences of a pattern with another string.
+
+bold = re.compile(r'\*{2}(.*?)\*{2}')
+
+text = 'Make this **bold**.  This **too**.'
+
+print('Text: ', text)
+print('Bold: ', bold.sub(r'<b>\1</b>', text))
+
+# References to the text matched by the pattern can be inserted using the \num syntax used for back-references.
+
+# To use named groups in the substitution, use the syntax \g<name>.
+
+bold = re.compile(r'\*{2}(?P<bold_text>.*?)\*{2}')
+
+text = 'Make this **bold**.  This **too**.'
+print('Text: ', text)
+print('Bold: ', bold.sub(r'<b>\g<bold_text></b>', text))
+
+
+# Pass a value to count to limit the number of substitutions performed.
+
+bold = re.compile(r'\*{2}(.*?)\*{2}')
+text = 'Make this **bold**.  This **too**.'
+
+print('Text: ', text)
+print('Bold: ', bold.sub(r'<b>\1</b>', text, count=1))
+
+
+# subn() works just like sub() except that it returns both the modified string and the count of substitutions made.
+
+bold = re.compile(r'\*{2}(.*?)\*{2}')
+
+text = 'Make this **bold**.  This **too**.'
+
+print('Text: ', text)
+print('Bold: ', bold.subn(r'<b>\1</b>', text))
+# Bold:  ('Make this <b>bold</b>.  This <b>too</b>.', 2)
+
+
+# Splitting with Patterns
+# str.split() is one of the most frequently used methods for breaking apart strings to parse them. It supports only
+# the use of literal values as separators, though, and sometimes a regular expression is necessary if the input is not
+# consistently formatted. For example, many plain text markup languages define paragraph separators as two or more
+# newline (\n) characters. In this case, str.split() cannot be used because of the "or more" part of the definition.
+# A strategy for identifying paragraphs using findall() would use a pattern like (.+?)\n{2,}.
+
+text = '''Paragraph one
+on two lines.
+
+Paragraph two.
+
+
+Paragraph three.'''
+
+for num, para in enumerate(re.findall(r'(.+?)\n{2,}', text, flags=re.DOTALL)):
+    print(num, repr(para))
+    print()
+
+
+print('With findall:')
+for num, para in enumerate(re.findall(r'(.+?)(\n{2,}|$)', text, flags=re.DOTALL)):
+    print(num, repr(para))
+    print()
+
+print()
+print('With split:')
+for num, para in enumerate(re.split(r'\n{2,}', text)):
+    print(num, repr(para))
+    print()
+
+
+text = '''Paragraph one
+on two lines.
+Paragraph two.
+
+Paragraph three.'''
+
+print('With split:')
+for num, para in enumerate(re.split(r'(\n{2,})', text)):
+    print(num, repr(para))
+    print()
 
